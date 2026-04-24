@@ -4,10 +4,7 @@ package bankapp.services;/*
  */
 
 
-import bankapp.exceptions.InvalidLogin;
-import bankapp.exceptions.NoUsersInUserList;
-import bankapp.exceptions.NotUniqueLogin;
-import bankapp.exceptions.UserNotFound;
+import bankapp.exceptions.*;
 import bankapp.models.Account;
 import bankapp.models.User;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +13,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 
 @Service
@@ -47,6 +43,9 @@ public class UserService {
     }
 
     public User getUserById(String id){
+        if(id == null || id.trim().isEmpty()){
+            throw new InvalidUserId();
+        }
         return userList.stream()
                 .filter(user -> user.getId().equals(id))
                 .findFirst()

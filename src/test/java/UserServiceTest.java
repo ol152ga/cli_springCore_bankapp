@@ -1,7 +1,4 @@
-import bankapp.exceptions.InvalidLogin;
-import bankapp.exceptions.NoUsersInUserList;
-import bankapp.exceptions.NotUniqueLogin;
-import bankapp.exceptions.UserNotFound;
+import bankapp.exceptions.*;
 import bankapp.models.User;
 import bankapp.services.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,6 +8,7 @@ import utils.Generator;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -25,8 +23,22 @@ public class UserServiceTest {
 
     @Test
     @DisplayName("user with 1 symbol login can be created")
-    public void createUserPositiveTest(){
+    public void createUserWithOneSymbolLoginTest(){
         String userLogin = Generator.generate(1);
+        User user = userService.createUser(userLogin, new ArrayList<>());
+
+        assertEquals(userLogin, user.getLogin());
+        assertNotNull(user.getId());
+        assertEquals(1, userService.getAllUserList().size());
+        assertEquals(user, userService.getAllUserList().getFirst());
+    }
+
+    @Test
+    @DisplayName("user with random symbol login can be created")
+    public void createUserPositiveTest(){
+        Random random = new Random();
+        int value = random.nextInt(49) + 2;
+        String userLogin = Generator.generate(value);
         User user = userService.createUser(userLogin, new ArrayList<>());
 
         assertEquals(userLogin, user.getLogin());
@@ -56,20 +68,26 @@ public class UserServiceTest {
         String userLogin = Generator.generate(5);
         userService.createUser(userLogin, new ArrayList<>());
 
-        assertThrows(NotUniqueLogin.class, ()->userService.createUser(userLogin, new ArrayList<>()));
+        NotUniqueLogin exception =  assertThrows(NotUniqueLogin.class, ()->userService.createUser(userLogin, new ArrayList<>()));
+        assertEquals("Login " + userLogin + " is not unique", exception.getMessage());
     }
 
     @Test
     @DisplayName("exception when creating user with empty login")
     public void returnExceptionGettingCreatingUserWithEmptyLoginTest(){
-        assertThrows(InvalidLogin.class, ()->userService.createUser("  ", new ArrayList<>()));
+        InvalidLogin exception = assertThrows(InvalidLogin.class, ()->userService.createUser("  ", new ArrayList<>()));
+        assertEquals("Login should not be empty", exception.getMessage());
+
+        //проверка что юзерлист пустой
         assertThrows(NoUsersInUserList.class, ()-> userService.getAllUserList());
     }
 
     @Test
     @DisplayName("exception when creating user with null login")
     public void returnExceptionGettingCreatingUserWithNullLoginTest(){
-        assertThrows(InvalidLogin.class, ()->userService.createUser(null, new ArrayList<>()));
+        InvalidLogin exception = assertThrows(InvalidLogin.class, ()->userService.createUser(null, new ArrayList<>()));
+        assertEquals("Login should not be empty", exception.getMessage());
+
         assertThrows(NoUsersInUserList.class, ()-> userService.getAllUserList());
     }
 
@@ -77,13 +95,30 @@ public class UserServiceTest {
     @DisplayName("exception when trying to find user with invalid ID")
     public void returnExceptionGettingFindingUserWithInvalidIdTest(){
         String invalidId = Generator.generate(30);
-        assertThrows(UserNotFound.class, ()->userService.getUserById(invalidId));
+        UserNotFound exception = assertThrows(UserNotFound.class, ()->userService.getUserById(invalidId));
+        assertEquals("User not found by ID: " + invalidId, exception.getMessage());
+
+    }
+
+    @Test
+    @DisplayName("exception when trying to find user with null ID")
+    public void returnExceptionGettingFindingUserWithNullIdTest() {
+        InvalidUserId  exception = assertThrows(InvalidUserId.class, () -> userService.getUserById(null));
+        assertEquals("User Id can not be empty or null", exception.getMessage());
+    }
+
+    @Test
+    @DisplayName("exception when trying to find user with empty ID")
+    public void returnExceptionGettingFindingUserWithEmptyIdTest() {
+        InvalidUserId  exception = assertThrows(InvalidUserId.class, () -> userService.getUserById("    "));
+        assertEquals("User Id can not be empty or null", exception.getMessage());
     }
 
     @Test
     @DisplayName("exception when getting empty all users list")
     public void returnExceptionGettingEmptyAllUsersListTest(){
-        assertThrows(NoUsersInUserList.class, ()->userService.getAllUserList());
+        NoUsersInUserList exception = assertThrows(NoUsersInUserList.class, ()->userService.getAllUserList());
+        assertEquals("There are no users found", exception.getMessage());
     }
 
 
