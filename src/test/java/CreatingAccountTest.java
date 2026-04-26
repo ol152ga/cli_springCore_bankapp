@@ -17,6 +17,7 @@ import utils.Generator;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -37,6 +38,7 @@ public class CreatingAccountTest {
         user1 = userService.createUser(Generator.generate(20), new ArrayList<>());
         user1Id = user1.getId();
     }
+
     @Test
     @DisplayName("account can be created with accountId")
     public void accountCanBeCreatedTest(){
@@ -50,30 +52,35 @@ public class CreatingAccountTest {
     @Test
     @DisplayName("several accounts can be created for one user ID")
     public void severalAccountsCanBeCreatedTest(){
-        int count = 5;
+        Random random = new Random();
+        int count = random.nextInt(20) + 1;
         for (int i = 0; i < count; i++) {
             accountService.createAccount(user1Id);
         }
-        assertEquals(5, user1.getAccountList().size());
+        assertEquals(count, user1.getAccountList().size());
     }
 
     @Test
     @DisplayName("exception when trying to create account with empty user Id")
     public void accountCanNotBeCreatedWithEmptyUserId(){
-        assertThrows(InvalidUserId.class, ()->accountService.createAccount("   "));
+        InvalidUserId exception = assertThrows(InvalidUserId.class, ()->accountService.createAccount("   "));
+        assertEquals("User Id can not be empty or null", exception.getMessage());
     }
 
     @Test
     @DisplayName("exception when trying to create account with null user Id")
     public void accountCanNotBeCreatedWithNullUserId(){
-        assertThrows(InvalidUserId.class, ()->accountService.createAccount(null));
+        InvalidUserId exception = assertThrows(InvalidUserId.class, ()->accountService.createAccount(null));
+        assertEquals("User Id can not be empty or null", exception.getMessage());
     }
 
     @Test
     @DisplayName("exception when trying to create account with not existing user Id")
     public void accountCanNotBeCreatedWithNotExistingUserId(){
-        assertThrows(UserNotFound.class, ()->
-                accountService.createAccount(Generator.generate(10)));
+        String invalidUserId = Generator.generate(10);
+        UserNotFound exception = assertThrows(UserNotFound.class, ()->
+                accountService.createAccount(invalidUserId));
+        assertEquals("User not found by ID: " + invalidUserId, exception.getMessage());
     }
 
 

@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -64,27 +65,37 @@ public class AccountService {
         }
 
         Account account = getAccountById(accountId);
+        if(account == null){
+            throw new AccountNotFound(accountId);
+        }
 
         // Обновляем баланс
-        account.setCurrentAmount(account.getCurrentAmount().add(sum));
+        account.setCurrentAmount(
+                account.getCurrentAmount()
+                        .add(sum)
+                        .setScale(2, RoundingMode.HALF_UP)
+        );
 
     }
 
     public void withdraw(BigDecimal sum, String accountId) {
         Account account = getAccountById(accountId);
+        if(account == null){
+            throw new AccountNotFound(accountId);
+        }
 
         if(sum == null){
             throw new NullSum();
         }
 
-        // Проверка: нельзя снять больше, чем есть на счету
-        if (sum.compareTo(account.getCurrentAmount()) > 0) {
-            throw new NotEnoughMoney(account.getAccountId());
-        }
-
         // Проверка: сумма должна быть положительной
         if (sum.compareTo(BigDecimal.ZERO) <= 0) {
             throw new SumLessOrEqualsZero();
+        }
+
+        // Проверка: нельзя снять больше, чем есть на счету
+        if (sum.compareTo(account.getCurrentAmount()) > 0) {
+            throw new NotEnoughMoney(accountId);
         }
 
         // Обновляем баланс
@@ -97,6 +108,20 @@ public class AccountService {
         Objects.requireNonNull(recipientId, "RecipientId cannot be null");
         Objects.requireNonNull(sum, "Sum cannot be null");
 
+        if(senderId.trim().isEmpty()|| recipientId.trim().isEmpty()){
+            throw new EmptyAccountIds();
+        }
+
+        Account senderAccount = getAccountById(senderId);
+        if(senderAccount == null){
+            throw new AccountNotFound(senderId);
+        }
+
+        Account recipientAccount = getAccountById(recipientId);
+        if(recipientAccount == null){
+            throw new AccountNotFound(recipientId);
+        }
+
         if (sum.compareTo(BigDecimal.ZERO) <= 0) {
             throw new SumLessOrEqualsZero();
         }
@@ -105,13 +130,23 @@ public class AccountService {
             throw new TransferToSameAccountForbidden();
         }
 
-        BigDecimal sumWithComission = sum.add(sum.multiply(comission));
+        BigDecimal normalizedSum = sum.setScale(2, RoundingMode.HALF_UP);
 
+        BigDecimal fee = normalizedSum
+                .multiply(comission)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal sumWithComission = normalizedSum.add(fee);
+
+        if (senderAccount.getCurrentAmount()
+                .compareTo(sumWithComission) < 0) {
+            throw new NotEnoughMoney(senderId);
+        }
         // Списываем с отправителя
         withdraw(sumWithComission, senderId);
 
         // Зачисляем на получателя
-        deposit(sum, recipientId);
+        deposit(normalizedSum, recipientId);
 
     }
 
