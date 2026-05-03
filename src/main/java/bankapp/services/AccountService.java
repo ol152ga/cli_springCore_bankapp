@@ -153,6 +153,10 @@ public class AccountService {
     public void closeAccount(String accountId){
         Objects.requireNonNull(accountId, "accountId cannot ne null");
 
+        if(accountId.trim().isEmpty()){
+            throw new EmptyAccountIds();
+        }
+
         Account account = getAccountById(accountId);
 
         String userId =  account.getUserId();
@@ -168,14 +172,26 @@ public class AccountService {
                 .findFirst()
                 .orElseThrow(() -> new NoSecondAccountFound(accountId));
 
+        String anotherAccountId = anotherAccount.getAccountId();
 
         // Переводим баланс закрываемого счета на другой
         BigDecimal balanceToTransfer =account.getCurrentAmount();
-        deposit(balanceToTransfer, anotherAccount.getAccountId());
+        if (balanceToTransfer.compareTo(BigDecimal.ZERO) > 0) {
+            deposit(balanceToTransfer, anotherAccountId);
+            account.setCurrentAmount(BigDecimal.ZERO);
+        }
+
+        System.out.println("amount " + balanceToTransfer + " is transferred from account ID "
+                +account.getAccountId() + " to account ID " + anotherAccountId);
+        System.out.println("account ID " + anotherAccountId + " balance is "
+                + anotherAccount.getCurrentAmount());
+        System.out.println("account ID " + accountId + " balance is "
+                + account.getCurrentAmount());
 
         // Удаляем закрываемый счет
         accountList.remove(account);
         user.getAccountList().remove(account);
+        System.out.println("account ID " + accountId + " is removed" );
 
     }
 

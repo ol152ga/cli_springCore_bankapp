@@ -22,24 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/*
-1) happypath другому челу
-2) себе на друг счет
-3) негативные
-0
-отриц
-больше баланса
-на тот же счет
-с /на не существуюущий
 
-ransfer == balance
-transfer > balance (ошибка)
-transfer = 0
-transfer с scale (0.001)
-конкурентные переводы (race condition)
-
-3) пустые, null
- */
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = AppConfig.class)
 public class TransferTest {
