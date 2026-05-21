@@ -2,9 +2,8 @@ package bankapp.services;
 
 import bankapp.exceptions.*;
 import bankapp.models.Account;
-import bankapp.models.User;
+import bankapp.repo.AccountStorage;
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -13,78 +12,62 @@ import java.math.RoundingMode;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.logging.Logger;
 
-/*
-Сервис для управления счетами. Содержит методы для создания счета, пополнения и
-снятия средств, перевода средств между счетами и закрытия счета.
- */
 @Service
 @RequiredArgsConstructor
 public class AccountService {
-    private final List<Account> accountList;
-    private final UserService userService;
+    private final AccountStorage accountStorage;
 
     @Value("${account.default-amount}")
     private BigDecimal defaultAmount;
 
     @Value("${account.transfer-commission}")
-    private BigDecimal comission;
+    private BigDecimal commission;
+
+    private static final Logger logger = Logger.getLogger(AccountService.class.getName());
 
     public Account createAccount(String userId) {
-        if(userId == null || userId.trim().isEmpty()){
+        if (userId == null || userId.trim().isEmpty()) {
             throw new InvalidUserId();
         }
 
-        boolean userIdExists = userService.getAllUserList().stream()
-                .anyMatch(user -> user.getId().equalsIgnoreCase(userId));
-        if(!userIdExists){
-            throw new UserNotFound(userId);
-        }
-
-        Account account;
-        account = Account.builder()
+        Account account = Account.builder()
                 .accountId(UUID.randomUUID().toString())
                 .userId(userId)
                 .currentAmount(defaultAmount)
                 .build();
 
-        accountList.add(account);
-    User user = userService.getUserById(userId);
-    user.getAccountList().add(account);
-
-    return account;
-}
+        accountStorage.update(account);
+        return account;
+    }
 
     public void deposit(BigDecimal sum, String accountId) {
-        if(sum == null){
+        if (sum == null) {
             throw new NullSum();
         }
 
         if (sum.compareTo(BigDecimal.ZERO) <= 0) {
             throw new SumLessOrEqualsZero();
         }
+        BigDecimal normalizedSum = sum.setScale(2, RoundingMode.HALF_UP);
 
-        Account account = getAccountById(accountId);
-        if(account == null){
-            throw new AccountNotFound(accountId);
-        }
+        Account account = accountStorage.findById(accountId);
 
         // Обновляем баланс
-        account.setCurrentAmount(
-                account.getCurrentAmount()
-                        .add(sum)
-                        .setScale(2, RoundingMode.HALF_UP)
-        );
+        BigDecimal newBalance =
+                account.getCurrentAmount().add(normalizedSum);
+
+        account.setCurrentAmount(newBalance.setScale(2, RoundingMode.HALF_UP));
+
+        accountStorage.update(account);
 
     }
 
     public void withdraw(BigDecimal sum, String accountId) {
-        Account account = getAccountById(accountId);
-        if(account == null){
-            throw new AccountNotFound(accountId);
-        }
+        Account account = accountStorage.findById(accountId);
 
-        if(sum == null){
+        if (sum == null) {
             throw new NullSum();
         }
 
@@ -97,77 +80,82 @@ public class AccountService {
         if (sum.compareTo(account.getCurrentAmount()) > 0) {
             throw new NotEnoughMoney(accountId);
         }
+        BigDecimal normalizedSum = sum.setScale(2, RoundingMode.HALF_UP);
 
         // Обновляем баланс
-        account.setCurrentAmount(account.getCurrentAmount().subtract(sum));
+        account.setCurrentAmount(
+                account.getCurrentAmount()
+                .subtract(normalizedSum));
 
+        accountStorage.update(account);
     }
 
-    public void transfer(String senderId, String recipientId, BigDecimal sum) {
-        Objects.requireNonNull(senderId, "SenderId cannot be null");
-        Objects.requireNonNull(recipientId, "RecipientId cannot be null");
+    public void transfer(String senderAccountId, String recipientAccountId, BigDecimal sum) {
+        Objects.requireNonNull(senderAccountId, "senderAccountId cannot be null");
+        Objects.requireNonNull(recipientAccountId, "recipientAccountId cannot be null");
         Objects.requireNonNull(sum, "Sum cannot be null");
 
-        if(senderId.trim().isEmpty()|| recipientId.trim().isEmpty()){
+        if (commission == null ||
+                commission.compareTo(BigDecimal.ZERO) < 0 ||
+                commission.compareTo(BigDecimal.ONE) > 0) {
+            throw new IllegalStateException("Invalid commission");
+        }
+
+        if (senderAccountId.trim().isEmpty() || recipientAccountId.trim().isEmpty()) {
             throw new EmptyAccountIds();
         }
 
-        Account senderAccount = getAccountById(senderId);
-        if(senderAccount == null){
-            throw new AccountNotFound(senderId);
-        }
-
-        Account recipientAccount = getAccountById(recipientId);
-        if(recipientAccount == null){
-            throw new AccountNotFound(recipientId);
-        }
+        Account senderAccount = accountStorage.findById(senderAccountId);
+        Account recipientAccount = accountStorage.findById(recipientAccountId);
 
         if (sum.compareTo(BigDecimal.ZERO) <= 0) {
             throw new SumLessOrEqualsZero();
         }
 
-        if (senderId.equals(recipientId)) {
+        if (senderAccountId.equals(recipientAccountId)) {
             throw new TransferToSameAccountForbidden();
         }
 
         BigDecimal normalizedSum = sum.setScale(2, RoundingMode.HALF_UP);
 
         BigDecimal fee = normalizedSum
-                .multiply(comission)
+                .multiply(commission)
                 .setScale(2, RoundingMode.HALF_UP);
 
         BigDecimal sumWithComission = normalizedSum.add(fee);
 
-        if (senderAccount.getCurrentAmount()
-                .compareTo(sumWithComission) < 0) {
-            throw new NotEnoughMoney(senderId);
+        if (senderAccount.getCurrentAmount().compareTo(sumWithComission) < 0) {
+            throw new NotEnoughMoney(senderAccountId);
         }
-        // Списываем с отправителя
-        withdraw(sumWithComission, senderId);
+        BigDecimal newSenderBalance = senderAccount.getCurrentAmount().subtract(sumWithComission);
+        BigDecimal newRecipientBalance = recipientAccount.getCurrentAmount().add(normalizedSum);
 
-        // Зачисляем на получателя
-        deposit(normalizedSum, recipientId);
+        senderAccount.setCurrentAmount(newSenderBalance);
+        recipientAccount.setCurrentAmount(newRecipientBalance);
 
+        accountStorage.update(senderAccount);
+        accountStorage.update(recipientAccount);
     }
 
-    public void closeAccount(String accountId){
-        Objects.requireNonNull(accountId, "accountId cannot ne null");
+    public void closeAccount(String accountId) {
+        Objects.requireNonNull(accountId, "accountId cannot be null");
 
-        if(accountId.trim().isEmpty()){
+        if (accountId.trim().isEmpty()) {
             throw new EmptyAccountIds();
         }
 
-        Account account = getAccountById(accountId);
+        Account account = accountStorage.findById(accountId);
 
-        String userId =  account.getUserId();
-        User user = userService.getUserById(userId);
+        String userId = account.getUserId();
 
-        if(user.getAccountList().size() == 1){
+        List<Account> accountsUserList = accountStorage.findByUserId(userId);
+
+        if (accountsUserList.size() == 1) {
             throw new CannotCloseTheOnlyAccount();
         }
 
         // Находим другой (первый) счет пользователя
-        Account anotherAccount= user.getAccountList().stream()
+        Account anotherAccount = accountsUserList.stream()
                 .filter(ac -> !ac.getAccountId().equals(accountId))
                 .findFirst()
                 .orElseThrow(() -> new NoSecondAccountFound(accountId));
@@ -175,36 +163,26 @@ public class AccountService {
         String anotherAccountId = anotherAccount.getAccountId();
 
         // Переводим баланс закрываемого счета на другой
-        BigDecimal balanceToTransfer =account.getCurrentAmount();
+        BigDecimal balanceToTransfer = account.getCurrentAmount().setScale(2, RoundingMode.HALF_UP);
         if (balanceToTransfer.compareTo(BigDecimal.ZERO) > 0) {
-            deposit(balanceToTransfer, anotherAccountId);
+            anotherAccount.setCurrentAmount(
+                    anotherAccount.getCurrentAmount().add(balanceToTransfer));
             account.setCurrentAmount(BigDecimal.ZERO);
+            accountStorage.update(anotherAccount);
+            accountStorage.update(account);
         }
 
-        System.out.println("amount " + balanceToTransfer + " is transferred from account ID "
-                +account.getAccountId() + " to account ID " + anotherAccountId);
-        System.out.println("account ID " + anotherAccountId + " balance is "
+        logger.info("amount " + balanceToTransfer + " is transferred from account ID "
+                + account.getAccountId() + " to account ID " + anotherAccountId);
+        logger.info("account ID " + anotherAccountId + " balance is "
                 + anotherAccount.getCurrentAmount());
-        System.out.println("account ID " + accountId + " balance is "
+        logger.info("account ID " + accountId + " balance is "
                 + account.getCurrentAmount());
 
         // Удаляем закрываемый счет
-        accountList.remove(account);
-        user.getAccountList().remove(account);
-        System.out.println("account ID " + accountId + " is removed" );
+        accountStorage.remove(account);
+        logger.info("account ID " + accountId + " is removed");
 
     }
-
-    public Account getAccountById(String accountId){
-        if(accountId == null || accountId.trim().isEmpty()){
-            throw new NullAccount();
-        }
-        return (Account) accountList.stream()
-                .filter(acc ->acc.getAccountId().equalsIgnoreCase(accountId))
-                .findFirst()
-                .orElseThrow(()->new AccountNotFound(accountId));
-
-    }
-
 
 }

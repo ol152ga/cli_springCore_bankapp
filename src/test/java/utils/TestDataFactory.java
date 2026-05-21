@@ -35,8 +35,7 @@ public class TestDataFactory {
 
     public static User createUser(UserService userService){
         User user = userService.createUser(
-                Generator.generate(20),
-                new ArrayList<>());
+                Generator.generate(20));
 
         return user;
 

@@ -25,7 +25,7 @@ public class UserServiceTest {
     @DisplayName("user with 1 symbol login can be created")
     public void createUserWithOneSymbolLoginTest(){
         String userLogin = Generator.generate(1);
-        User user = userService.createUser(userLogin, new ArrayList<>());
+        User user = userService.createUser(userLogin);
 
         assertEquals(userLogin, user.getLogin());
         assertNotNull(user.getId());
@@ -39,7 +39,7 @@ public class UserServiceTest {
         Random random = new Random();
         int value = random.nextInt(49) + 2;
         String userLogin = Generator.generate(value);
-        User user = userService.createUser(userLogin, new ArrayList<>());
+        User user = userService.createUser(userLogin);
 
         assertEquals(userLogin, user.getLogin());
         assertNotNull(user.getId());
@@ -51,7 +51,7 @@ public class UserServiceTest {
     @DisplayName("user can be found by ID")
     public void getUserByIdPositiveTest(){
         String userLogin = Generator.generate(10);
-        User user = userService.createUser(userLogin, new ArrayList<>());
+        User user = userService.createUser(userLogin);
         String userId = user.getId();
 
         User foundUser = userService.getUserById(userId);
@@ -66,16 +66,16 @@ public class UserServiceTest {
     @DisplayName("exception when creating user with not unique login")
     public void returnExceptionGettingCreatingUserWithNotUniqueLoginTest(){
         String userLogin = Generator.generate(5);
-        userService.createUser(userLogin, new ArrayList<>());
+        userService.createUser(userLogin);
 
-        NotUniqueLogin exception =  assertThrows(NotUniqueLogin.class, ()->userService.createUser(userLogin, new ArrayList<>()));
+        NotUniqueLogin exception =  assertThrows(NotUniqueLogin.class, ()->userService.createUser(userLogin));
         assertEquals("Login " + userLogin + " is not unique", exception.getMessage());
     }
 
     @Test
     @DisplayName("exception when creating user with empty login")
     public void returnExceptionGettingCreatingUserWithEmptyLoginTest(){
-        InvalidLogin exception = assertThrows(InvalidLogin.class, ()->userService.createUser("  ", new ArrayList<>()));
+        InvalidLogin exception = assertThrows(InvalidLogin.class, ()->userService.createUser("  "));
         assertEquals("Login should not be empty", exception.getMessage());
 
         //проверка что юзерлист пустой
@@ -85,7 +85,7 @@ public class UserServiceTest {
     @Test
     @DisplayName("exception when creating user with null login")
     public void returnExceptionGettingCreatingUserWithNullLoginTest(){
-        InvalidLogin exception = assertThrows(InvalidLogin.class, ()->userService.createUser(null, new ArrayList<>()));
+        InvalidLogin exception = assertThrows(InvalidLogin.class, ()->userService.createUser(null));
         assertEquals("Login should not be empty", exception.getMessage());
 
         assertThrows(NoUsersInUserList.class, ()-> userService.getAllUserList());

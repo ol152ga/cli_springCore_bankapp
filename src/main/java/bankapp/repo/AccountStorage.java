@@ -13,10 +13,6 @@ public class AccountStorage {
 
     private final List<Account> accounts = new ArrayList<>();
 
-    public void save(Account account) {
-        accounts.add(account);
-    }
-
     public void update(Account account) {
         remove(account);
         accounts.add(account);

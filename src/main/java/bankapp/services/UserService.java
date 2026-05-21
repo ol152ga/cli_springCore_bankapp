@@ -5,7 +5,6 @@ package bankapp.services;/*
 
 
 import bankapp.exceptions.*;
-import bankapp.models.Account;
 import bankapp.models.User;
 import lombok.RequiredArgsConstructor;
 
@@ -18,9 +17,9 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class UserService {
-    private final List<User> userList;
+    private final List<User> userList = new ArrayList<>();
 
-    public User createUser(String login, List<Account> accounts) {
+    public User createUser(String login) {
         if(login == null || login.trim().isEmpty()){
             throw new InvalidLogin();
         }
@@ -41,20 +40,17 @@ public class UserService {
         return newUser;
     }
 
-    public User getUserByUserId(String id){
-        if(id == null || id.trim().isEmpty()){
+    public User getUserByUserId(String userId){
+        if(userId == null || userId.trim().isEmpty()){
             throw new InvalidUserId();
         }
         return userList.stream()
-                .filter(user -> user.getId().equals(id))
+                .filter(user -> user.getId().equals(userId))
                 .findFirst()
-                .orElseThrow(() -> new UserNotFound(id));
+                .orElseThrow(() -> new UserNotFound(userId));
     }
 
     public List<User> getAllUserList(){
-        if(userList.isEmpty()){
-            throw new NoUsersInUserList();
-        }
         return new ArrayList<>(userList); // возвращаем копию
     }
 

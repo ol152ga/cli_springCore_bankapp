@@ -5,8 +5,6 @@ import bankapp.models.User;
 import bankapp.services.UserService;
 import org.springframework.stereotype.Component;
 
-
-import java.util.ArrayList;
 import java.util.Scanner;
 
 @Component
@@ -22,7 +20,7 @@ public class CreateUserCommand implements OperationCommand{
         System.out.print("Enter login: ");
         String login = scanner.nextLine();
 
-        User user = userService.createUser(login, new ArrayList<>());
+        User user = userService.createUser(login);
         System.out.println("bankapp.models.User created: " + user);
     }
 
