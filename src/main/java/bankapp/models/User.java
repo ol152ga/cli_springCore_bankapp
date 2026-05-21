@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
-import java.util.List;
 
 @AllArgsConstructor
 @Data
@@ -12,6 +11,5 @@ import java.util.List;
 public class User {
     private final String id;
     private String login;
-    private List<Account> accountList;
 
 }

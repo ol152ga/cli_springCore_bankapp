@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import utils.Generator;
+import utils.TestDataFactory;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -35,7 +36,7 @@ public class CreatingAccountTest {
 
     @BeforeEach
     void setUp() {
-        user1 = userService.createUser(Generator.generate(20), new ArrayList<>());
+        user1 =  TestDataFactory.createUser(userService);
         user1Id = user1.getId();
     }
 

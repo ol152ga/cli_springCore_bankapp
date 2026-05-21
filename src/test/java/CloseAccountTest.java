@@ -11,11 +11,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-import utils.Generator;
+import utils.TestDataFactory;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -36,30 +37,44 @@ public class CloseAccountTest {
     private BigDecimal account1Amount;
     private BigDecimal account2Amount;
 
+    private static final Logger logger = Logger.getLogger(TransferTest.class.getName());
+
+    /*
     @BeforeEach
     void setUp() {
-        user = userService.createUser(Generator.generate(20), new ArrayList<>());
+        user = TestDataFactory.createUser(userService);
         userId = user.getId();
-        account1 = accountService.createAccount(userId);
+        List<Account> accountList = TestDataFactory.createAccounts(userId, accountService, 2);
+        account1 = accountList.getFirst();
         account1Id = account1.getAccountId();
         account1Amount = account1.getCurrentAmount();
-        account2 = accountService.createAccount(userId);
+        account2 = accountList.getLast();
         account2Amount = account2.getCurrentAmount();
 
     }
 
+     */
+
     @Test
     @DisplayName("account with default amount can be closed")
     public void closeAccountWithDefaultAmountTest() {
-        BigDecimal normalizedAccount1Amount = account1Amount.setScale(2, RoundingMode.HALF_UP);
-        BigDecimal normalizedAccount2Amount = account2Amount.setScale(2, RoundingMode.HALF_UP);
-        accountService.closeAccount(account1Id);
-        BigDecimal account2NewAmount = account2.getCurrentAmount();
-        BigDecimal normalizedAccount2NewAmount = account2NewAmount.setScale(2, RoundingMode.HALF_UP);
+        User user = TestDataFactory.createUser(userService);
+        List<Account> accounts = TestDataFactory.createAccounts(user.getId(), accountService, 2);
+
+        Account account1 = accounts.get(0);
+        Account account2 = accounts.get(1);
+
+        BigDecimal normalizedAccount1Amount = TestDataFactory.norm(account1.getCurrentAmount());
+        BigDecimal normalizedAccount2Amount = TestDataFactory.norm(account2.getCurrentAmount());
+
+        accountService.closeAccount(account1.getAccountId());
+
+        BigDecimal account2NewAmount = TestDataFactory.norm(account2.getCurrentAmount());
         user.getAccountList()
                 .forEach(System.out::println);
-        assertEquals(1, user.getAccountList().size());
-        assertEquals(normalizedAccount1Amount.add(normalizedAccount2Amount), normalizedAccount2NewAmount);
+        List<Account> accountsList = accountService.
+        assertEquals(1, accounts.size());
+        assertEquals(normalizedAccount1Amount.add(normalizedAccount2Amount), account2NewAmount);
     }
 
     @Test

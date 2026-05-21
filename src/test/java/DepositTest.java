@@ -18,9 +18,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import utils.Generator;
+import utils.TestDataFactory;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -44,9 +44,9 @@ public class DepositTest {
 
     @BeforeEach
     void setUp() {
-        user1 = userService.createUser(Generator.generate(20), new ArrayList<>());
+        user1 = TestDataFactory.createUser(userService);
         user1Id = user1.getId();
-        account = accountService.createAccount(user1Id);
+        account =TestDataFactory.createAccount(user1Id, accountService);
     }
 
     @Test
@@ -55,7 +55,11 @@ public class DepositTest {
         accountService.deposit(deposit, account.getAccountId());
 
         Account updated = accountService.getAccountById(account.getAccountId());
-        assertEquals(defaultAmount.add(deposit), updated.getCurrentAmount());
+        assertEquals(
+                0,
+                defaultAmount.add(deposit)
+                        .compareTo(updated.getCurrentAmount())
+        );
     }
 
     @Test
@@ -78,7 +82,15 @@ public class DepositTest {
         }
 
         Account updated = accountService.getAccountById(account.getAccountId());
-        assertEquals(defaultAmount.add(deposit.multiply(BigDecimal.valueOf(count))), updated.getCurrentAmount());
+        BigDecimal expected =
+                defaultAmount.add(
+                        deposit.multiply(BigDecimal.valueOf(count))
+                );
+
+        assertEquals(
+                0,
+                expected.compareTo(updated.getCurrentAmount())
+        );
     }
 
     @Test

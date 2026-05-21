@@ -13,10 +13,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import utils.Generator;
+import utils.TestDataFactory;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.ArrayList;
+import java.util.logging.Logger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -44,21 +45,22 @@ public class TransferTest {
     @Value("${account.transfer-commission}")
     private BigDecimal commission;
 
+    private static final Logger logger = Logger.getLogger(TransferTest.class.getName());
 
     @BeforeEach
     void setUp() {
-        sender = userService.createUser(Generator.generate(20), new ArrayList<>());
+        sender = TestDataFactory.createUser(userService);
         senderId = sender.getId();
-        senderAccount = accountService.createAccount(senderId);
+        senderAccount = TestDataFactory.createAccounts(senderId, accountService, 1).getFirst();
         senderAccountId = senderAccount.getAccountId();
         accountService.deposit(deposit, senderAccountId);
         senderBalance = accountService
                 .getAccountById(senderAccountId)
                 .getCurrentAmount();
 
-        recipient = userService.createUser(Generator.generate(20), new ArrayList<>());
+        recipient = TestDataFactory.createUser(userService);
         recipientId = recipient.getId();
-        recipientAccount = accountService.createAccount(recipientId);
+        recipientAccount = TestDataFactory.createAccounts(recipientId, accountService, 1).getFirst();
         recipientAccountId = recipientAccount.getAccountId();
         recipientBalance = accountService
                 .getAccountById(recipientAccountId)
@@ -67,7 +69,7 @@ public class TransferTest {
     }
 
     @Test
-    @DisplayName("amount less balance can be transferred")
+    @DisplayName("amount less balance can be transferred to another user account")
     public void transferLessBalanceCanBeMadeTest() {
         BigDecimal percent = commission;
 
@@ -79,9 +81,10 @@ public class TransferTest {
         BigDecimal fee = normalizedSum
                 .multiply(percent)
                 .setScale(2, RoundingMode.HALF_UP);
-        System.out.println("senderBalance = " + senderBalance);
-        System.out.println("recipientBalance = " + recipientBalance);
-        System.out.println("transferAmount + fee = " + normalizedSum.add(fee));
+
+        logger.info("senderBalance = " + senderBalance);
+        logger.info("recipientBalance = " + recipientBalance);
+        logger.info("transferAmount + fee = " + normalizedSum.add(fee));
 
         accountService.transfer(senderAccountId, recipientAccountId, normalizedSum);
 
@@ -93,11 +96,48 @@ public class TransferTest {
         BigDecimal finalSenderAccount = updatedSender.getCurrentAmount();
         BigDecimal finalRecipientAccount = updatedRecipient.getCurrentAmount();
 
-        System.out.println("finalSenderAccountSum = " + finalSenderAccount);
-        System.out.println("finalRecipientAccountSum = " + finalRecipientAccount);
+        logger.info("finalSenderAccountSum = " + finalSenderAccount);
+        logger.info("finalRecipientAccountSum = " + finalRecipientAccount);
 
         assertThat(finalSenderAccount).isEqualByComparingTo(expectedSender);
         assertThat(finalRecipientAccount).isEqualByComparingTo(expectedRecipient);
+    }
+    @Test
+    @DisplayName("amount less balance can be transferred to the same user account")
+    public void transferLessBalanceToSameUserAccountCanBeMadeTest() {
+        BigDecimal percent = commission;
+
+        BigDecimal transferAmount = senderBalance
+                .subtract(new BigDecimal("0.01"))
+                .divide(BigDecimal.ONE.add(percent), 2, RoundingMode.DOWN);
+
+        BigDecimal normalizedSum = transferAmount.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal fee = normalizedSum
+                .multiply(percent)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        Account senderAccount2 = TestDataFactory.createAccount(senderId, accountService);
+        String account2Id = senderAccount2.getAccountId();
+
+        logger.info("Account1 balance = " + senderBalance);
+        logger.info("Account2 balance = " + recipientBalance);
+        logger.info("transferAmount + fee = " + normalizedSum.add(fee));
+
+        accountService.transfer(senderAccountId, account2Id, normalizedSum);
+
+        Account updatedAccount1 = accountService.getAccountById(senderAccountId);
+        Account updatedAccount2 = accountService.getAccountById(account2Id);
+
+        BigDecimal expectedSender = senderBalance.subtract(normalizedSum).subtract(fee);
+        BigDecimal expectedRecipient = recipientBalance.add(normalizedSum);
+        BigDecimal finalAccount1Amount = updatedAccount1.getCurrentAmount();
+        BigDecimal finalAccount2Amount = updatedAccount2.getCurrentAmount();
+
+        logger.info("final Account1 Amount = " + finalAccount1Amount);
+        logger.info("final Account2 Amount = " + finalAccount2Amount);
+
+        assertThat(finalAccount1Amount).isEqualByComparingTo(expectedSender);
+        assertThat(finalAccount2Amount).isEqualByComparingTo(expectedRecipient);
     }
 
     @Test
@@ -114,9 +154,9 @@ public class TransferTest {
                 .setScale(2, RoundingMode.HALF_UP);
         accountService.transfer(senderAccountId, recipientAccountId, normalizedSum);
 
-        System.out.println("senderBalance = " + senderBalance);
-        System.out.println("recipientBalance = " + recipientBalance);
-        System.out.println("transferAmount + fee = " + normalizedSum.add(fee));
+        logger.info("senderBalance = " + senderBalance);
+        logger.info("recipientBalance = " + recipientBalance);
+        logger.info("transferAmount + fee = " + normalizedSum.add(fee));
 
         Account updatedSender = accountService.getAccountById(senderAccountId);
         Account updatedRecipient = accountService.getAccountById(recipientAccountId);
@@ -125,8 +165,8 @@ public class TransferTest {
         BigDecimal finalSenderAccount = updatedSender.getCurrentAmount();
         BigDecimal finalRecipientAccount = updatedRecipient.getCurrentAmount();
 
-        System.out.println("finalSenderAccountSum = " + finalSenderAccount);
-        System.out.println("finalRecipientAccountSum = " + finalRecipientAccount);
+        logger.info("finalSenderAccountSum = " + finalSenderAccount);
+        logger.info("finalRecipientAccountSum = " + finalRecipientAccount);
 
         assertThat(finalSenderAccount).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(finalRecipientAccount).isEqualByComparingTo(expectedRecipient);
@@ -142,9 +182,9 @@ public class TransferTest {
                 .setScale(2, RoundingMode.HALF_UP);
         accountService.transfer(senderAccountId, recipientAccountId, transferAmount);
 
-        System.out.println("senderBalance = " + senderBalance);
-        System.out.println("recipientBalance = " + recipientBalance);
-        System.out.println("transferAmount = " + transferAmount);
+        logger.info("senderBalance = " + senderBalance);
+        logger.info("recipientBalance = " + recipientBalance);
+        logger.info("transferAmount = " + transferAmount);
 
         Account updatedSender = accountService.getAccountById(senderAccountId);
         Account updatedRecipient = accountService.getAccountById(recipientAccountId);
@@ -154,8 +194,8 @@ public class TransferTest {
         BigDecimal finalSenderAccount = updatedSender.getCurrentAmount();
         BigDecimal finalRecipientAccount = updatedRecipient.getCurrentAmount();
 
-        System.out.println("finalSenderAccountSum = " + finalSenderAccount);
-        System.out.println("finalRecipientAccountSum = " + finalRecipientAccount);
+        logger.info("finalSenderAccountSum = " + finalSenderAccount);
+        logger.info("finalRecipientAccountSum = " + finalRecipientAccount);
 
         assertThat(finalSenderAccount).isEqualByComparingTo(expectedSender);
         assertThat(finalRecipientAccount).isEqualByComparingTo(expectedRecipient);
@@ -182,8 +222,8 @@ public class TransferTest {
         BigDecimal fee = normalizedSum
                 .multiply(percent)
                 .setScale(2, RoundingMode.HALF_UP);
-        System.out.println("senderBalance = " + senderBalance);
-        System.out.println("transferAmount + fee = " + normalizedSum.add(fee));
+        logger.info("senderBalance = " + senderBalance);
+        logger.info("transferAmount + fee = " + normalizedSum.add(fee));
 
         assertThrows(NotEnoughMoney.class, () ->
                 accountService.transfer(senderAccountId, recipientAccountId, normalizedSum));

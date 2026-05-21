@@ -34,7 +34,6 @@ public class UserService {
         User newUser = User.builder()
                 .id(UUID.randomUUID().toString())
                 .login(login)
-                .accountList(accounts)
                 .build();
 
 
@@ -42,7 +41,7 @@ public class UserService {
         return newUser;
     }
 
-    public User getUserById(String id){
+    public User getUserByUserId(String id){
         if(id == null || id.trim().isEmpty()){
             throw new InvalidUserId();
         }
@@ -58,4 +57,5 @@ public class UserService {
         }
         return new ArrayList<>(userList); // возвращаем копию
     }
+
 }

@@ -10,6 +10,7 @@ import bankapp.services.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -18,6 +19,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import utils.Generator;
+import utils.TestDataFactory;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -45,9 +47,9 @@ public class WithdrawTest {
 
     @BeforeEach
     void setUp() {
-        user1 = userService.createUser(Generator.generate(20), new ArrayList<>());
+        user1 = TestDataFactory.createUser(userService);
         user1Id = user1.getId();
-        account = accountService.createAccount(user1Id);
+        account = TestDataFactory.createAccount(user1Id, accountService);
         accountId = account.getAccountId();
         accountService.deposit(deposit, account.getAccountId());
         balance = account.getCurrentAmount();
