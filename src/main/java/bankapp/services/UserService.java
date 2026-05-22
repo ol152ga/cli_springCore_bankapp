@@ -45,13 +45,17 @@ public class UserService {
             throw new InvalidUserId();
         }
         return userList.stream()
-                .filter(user -> user.getId().equals(userId))
+                .filter(user -> userId.equals(user.getId()))
                 .findFirst()
                 .orElseThrow(() -> new UserNotFound(userId));
     }
 
     public List<User> getAllUserList(){
         return new ArrayList<>(userList); // возвращаем копию
+    }
+
+    public void clear(){
+        userList.clear();
     }
 
 }

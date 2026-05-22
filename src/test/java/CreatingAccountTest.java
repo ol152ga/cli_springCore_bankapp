@@ -1,24 +1,24 @@
 import bankapp.AppConfig;
 import bankapp.exceptions.InvalidUserId;
 import bankapp.exceptions.UserNotFound;
-import bankapp.models.Account;
 import bankapp.models.User;
+import bankapp.repo.AccountStorage;
 import bankapp.services.AccountService;
 import bankapp.services.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import utils.AccountScenario;
 import utils.Generator;
-import utils.TestDataFactory;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -28,37 +28,39 @@ public class CreatingAccountTest {
     @Autowired
     private AccountService accountService;
     @Autowired
+    private AccountStorage accountStorage;
+    @Autowired
     private UserService userService;
-    private String user1Id;
-    private User user1;
+
     @Value("${account.default-amount}")
     private BigDecimal defaultAmount;
 
     @BeforeEach
     void setUp() {
-        user1 =  TestDataFactory.createUser(userService);
-        user1Id = user1.getId();
+        accountStorage.clear();
+        userService.clear();
     }
 
     @Test
-    @DisplayName("account can be created with accountId")
-    public void accountCanBeCreatedTest(){
-        Account account = accountService.createAccount(user1Id);
+    @DisplayName("account can be created with default balance")
+    public void shouldCreateAccount() {
 
-        assertEquals(1, user1.getAccountList().size());
-        assertNotNull(user1.getAccountList().get(0).getAccountId());
-        assertEquals(defaultAmount, account.getCurrentAmount());
+        new AccountScenario(userService, accountService, accountStorage)
+                .givenUser()
+                .whenUserCreatesAccounts(1)
+                .thenUserHasAccounts(1)
+                .thenAccountHasBalance(0, defaultAmount);
     }
 
-    @Test
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2, 5, 10})
     @DisplayName("several accounts can be created for one user ID")
-    public void severalAccountsCanBeCreatedTest(){
-        Random random = new Random();
-        int count = random.nextInt(20) + 1;
-        for (int i = 0; i < count; i++) {
-            accountService.createAccount(user1Id);
-        }
-        assertEquals(count, user1.getAccountList().size());
+    public void shouldCreateTwoAccountsForUser(int count) {
+
+        new AccountScenario(userService, accountService, accountStorage)
+                .givenUser()
+                .whenUserCreatesAccounts(count)
+                .thenUserHasAccounts(count);
     }
 
     @Test
@@ -82,7 +84,7 @@ public class CreatingAccountTest {
         UserNotFound exception = assertThrows(UserNotFound.class, ()->
                 accountService.createAccount(invalidUserId));
         assertEquals("User not found by ID: " + invalidUserId, exception.getMessage());
+        assertTrue(accountStorage.findByUserId(invalidUserId).isEmpty());
     }
-
 
 }

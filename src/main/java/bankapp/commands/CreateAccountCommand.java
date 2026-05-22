@@ -27,7 +27,7 @@ public class CreateAccountCommand implements OperationCommand {
 
         Account account = accountService.createAccount(userId);
         System.out.println("New account created with ID: " + account.getAccountId() +
-                " for user: " + userService.getUserById(userId));
+                " for user: " + userService.getUserByUserId(userId));
     }
 
     @Override

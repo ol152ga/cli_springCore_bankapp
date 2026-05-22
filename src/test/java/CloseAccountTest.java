@@ -1,7 +1,6 @@
 import bankapp.AppConfig;
 import bankapp.exceptions.EmptyAccountIds;
-import bankapp.models.Account;
-import bankapp.models.User;
+import bankapp.repo.AccountStorage;
 import bankapp.services.AccountService;
 import bankapp.services.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -9,13 +8,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import utils.AccountScenario;
 import utils.TestDataFactory;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.List;
+
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -28,68 +28,52 @@ public class CloseAccountTest {
     private UserService userService;
     @Autowired
     private AccountService accountService;
+    @Autowired
+    private AccountStorage accountStorage;
+    @Value("${account.default-amount}")
+    private BigDecimal defaultAmount;
 
-    private User user;
-    private String userId;
-    private Account account1;
-    private String account1Id;
-    private Account account2;
-    private BigDecimal account1Amount;
-    private BigDecimal account2Amount;
+    private static final Logger logger = Logger.getLogger(CloseAccountTest.class.getName());
 
-    private static final Logger logger = Logger.getLogger(TransferTest.class.getName());
-
-    /*
     @BeforeEach
-    void setUp() {
-        user = TestDataFactory.createUser(userService);
-        userId = user.getId();
-        List<Account> accountList = TestDataFactory.createAccounts(userId, accountService, 2);
-        account1 = accountList.getFirst();
-        account1Id = account1.getAccountId();
-        account1Amount = account1.getCurrentAmount();
-        account2 = accountList.getLast();
-        account2Amount = account2.getCurrentAmount();
-
+    void setup() {
+        accountStorage.clear();
+        userService.clear();
     }
-
-     */
 
     @Test
     @DisplayName("account with default amount can be closed")
-    public void closeAccountWithDefaultAmountTest() {
-        User user = TestDataFactory.createUser(userService);
-        List<Account> accounts = TestDataFactory.createAccounts(user.getId(), accountService, 2);
+    public void shouldCloseAccountWithDefaultAmount(){
+        AccountScenario scenario = new AccountScenario(userService, accountService, accountStorage);
 
-        Account account1 = accounts.get(0);
-        Account account2 = accounts.get(1);
+        scenario
+                .givenUserWithAccounts(2);
+        String accountIdToClose = scenario.getAccountId(1);
 
-        BigDecimal normalizedAccount1Amount = TestDataFactory.norm(account1.getCurrentAmount());
-        BigDecimal normalizedAccount2Amount = TestDataFactory.norm(account2.getCurrentAmount());
+        BigDecimal expected = TestDataFactory.norm(defaultAmount.add(defaultAmount));
 
-        accountService.closeAccount(account1.getAccountId());
-
-        BigDecimal account2NewAmount = TestDataFactory.norm(account2.getCurrentAmount());
-        user.getAccountList()
-                .forEach(System.out::println);
-        List<Account> accountsList = accountService.
-        assertEquals(1, accounts.size());
-        assertEquals(normalizedAccount1Amount.add(normalizedAccount2Amount), account2NewAmount);
+        scenario
+                .whenUserClosesAccount(accountIdToClose)
+                .thenUserHasAccounts(1)
+                .thenAccountHasBalance(0, expected);
     }
 
     @Test
-    @DisplayName("account with 0.00 amount can be closed")
-    public void closeAccountWithZeroAmountTest() {
-        account1.setCurrentAmount(BigDecimal.ZERO);
-        BigDecimal normalizedAccount2Amount = account2Amount.setScale(2, RoundingMode.HALF_UP);
-        accountService.closeAccount(account1Id);
-        BigDecimal account2NewAmount = account2.getCurrentAmount();
-        BigDecimal normalizedAccount2NewAmount = account2NewAmount.setScale(2, RoundingMode.HALF_UP);
-        user.getAccountList()
-                .forEach(System.out::println);
-        assertEquals(1, user.getAccountList().size());
-        assertEquals(normalizedAccount2Amount, normalizedAccount2NewAmount);
+    @DisplayName("account with zero amount can be closed")
+    public void shouldCloseAccountWithZeroAmount(){
+        AccountScenario scenario = new AccountScenario(userService, accountService, accountStorage);
+
+        scenario
+                .givenUserWithAccounts(2);
+        String accountIdToClose = scenario.getAccountId(1);
+        accountStorage.findById(accountIdToClose).setCurrentAmount(BigDecimal.ZERO);
+
+        scenario
+                .whenUserClosesAccount(accountIdToClose)
+                .thenUserHasAccounts(1)
+                .thenAccountHasBalance(0, defaultAmount);
     }
+
 
     @Test
     @DisplayName("exception when account id is null")
@@ -99,7 +83,7 @@ public class CloseAccountTest {
                 () -> accountService.closeAccount(null)
         );
 
-        assertEquals("accountId cannot ne null", ex.getMessage());
+        assertEquals("accountId cannot be null", ex.getMessage());
     }
 
     @Test

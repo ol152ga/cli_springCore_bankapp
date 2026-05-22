@@ -54,11 +54,10 @@ public class DepositTest {
     public void validSumCanBeDepositedTest(){
         accountService.deposit(deposit, account.getAccountId());
 
-        Account updated = accountService.getAccountById(account.getAccountId());
         assertEquals(
                 0,
                 defaultAmount.add(deposit)
-                        .compareTo(updated.getCurrentAmount())
+                        .compareTo(account.getCurrentAmount())
         );
     }
 
@@ -68,8 +67,7 @@ public class DepositTest {
         BigDecimal value = new BigDecimal("0.01");
         accountService.deposit(value, account.getAccountId());
 
-        Account updated = accountService.getAccountById(account.getAccountId());
-        assertEquals(defaultAmount.add(value), updated.getCurrentAmount());
+        assertEquals(defaultAmount.add(value), account.getCurrentAmount());
     }
 
     @Test
@@ -81,7 +79,6 @@ public class DepositTest {
             accountService.deposit(deposit, account.getAccountId());
         }
 
-        Account updated = accountService.getAccountById(account.getAccountId());
         BigDecimal expected =
                 defaultAmount.add(
                         deposit.multiply(BigDecimal.valueOf(count))
@@ -89,7 +86,7 @@ public class DepositTest {
 
         assertEquals(
                 0,
-                expected.compareTo(updated.getCurrentAmount())
+                expected.compareTo(account.getCurrentAmount())
         );
     }
 

@@ -34,14 +34,23 @@ public class TestDataFactory {
 
 
     public static User createUser(UserService userService){
-        User user = userService.createUser(
-                Generator.generate(20));
+        User user = userService.createUser(Generator.generate(20));
 
         return user;
-
     }
 
     public static BigDecimal norm(BigDecimal value) {
         return value.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    public static TestScenario createUserWithAccounts(
+            int accountsCount,
+            UserService userService,
+            AccountService accountService) {
+
+        User user = userService.createUser(Generator.generate(20));
+        List<Account> accounts = createAccounts(user.getId(), accountService, accountsCount);
+
+        return new TestScenario(user, accounts);
     }
 }

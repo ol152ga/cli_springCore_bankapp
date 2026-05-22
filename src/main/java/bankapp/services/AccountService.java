@@ -18,6 +18,7 @@ import java.util.logging.Logger;
 @RequiredArgsConstructor
 public class AccountService {
     private final AccountStorage accountStorage;
+    private final UserService userService;
 
     @Value("${account.default-amount}")
     private BigDecimal defaultAmount;
@@ -28,9 +29,10 @@ public class AccountService {
     private static final Logger logger = Logger.getLogger(AccountService.class.getName());
 
     public Account createAccount(String userId) {
-        if (userId == null || userId.trim().isEmpty()) {
+        if (userId == null || userId.trim().isEmpty() ) {
             throw new InvalidUserId();
         }
+        userService.getUserByUserId(userId);
 
         Account account = Account.builder()
                 .accountId(UUID.randomUUID().toString())

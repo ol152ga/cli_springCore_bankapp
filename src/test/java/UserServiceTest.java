@@ -18,7 +18,7 @@ public class UserServiceTest {
     @BeforeEach
     void setUp() {
         List<User> userList = new ArrayList<>();
-        userService = new UserService(userList);
+        userService = new UserService();
     }
 
     @Test
@@ -54,7 +54,7 @@ public class UserServiceTest {
         User user = userService.createUser(userLogin);
         String userId = user.getId();
 
-        User foundUser = userService.getUserById(userId);
+        User foundUser = userService.getUserByUserId(userId);
 
         assertNotNull(foundUser);
         assertEquals(user.getId(), foundUser.getId());
@@ -95,7 +95,7 @@ public class UserServiceTest {
     @DisplayName("exception when trying to find user with invalid ID")
     public void returnExceptionGettingFindingUserWithInvalidIdTest(){
         String invalidId = Generator.generate(30);
-        UserNotFound exception = assertThrows(UserNotFound.class, ()->userService.getUserById(invalidId));
+        UserNotFound exception = assertThrows(UserNotFound.class, ()->userService.getUserByUserId(invalidId));
         assertEquals("User not found by ID: " + invalidId, exception.getMessage());
 
     }
@@ -103,14 +103,14 @@ public class UserServiceTest {
     @Test
     @DisplayName("exception when trying to find user with null ID")
     public void returnExceptionGettingFindingUserWithNullIdTest() {
-        InvalidUserId  exception = assertThrows(InvalidUserId.class, () -> userService.getUserById(null));
+        InvalidUserId  exception = assertThrows(InvalidUserId.class, () -> userService.getUserByUserId(null));
         assertEquals("User Id can not be empty or null", exception.getMessage());
     }
 
     @Test
     @DisplayName("exception when trying to find user with empty ID")
     public void returnExceptionGettingFindingUserWithEmptyIdTest() {
-        InvalidUserId  exception = assertThrows(InvalidUserId.class, () -> userService.getUserById("    "));
+        InvalidUserId  exception = assertThrows(InvalidUserId.class, () -> userService.getUserByUserId("    "));
         assertEquals("User Id can not be empty or null", exception.getMessage());
     }
 

@@ -2,6 +2,7 @@ import bankapp.AppConfig;
 import bankapp.exceptions.*;
 import bankapp.models.Account;
 import bankapp.models.User;
+import bankapp.repo.AccountStorage;
 import bankapp.services.AccountService;
 import bankapp.services.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,6 +32,9 @@ public class TransferTest {
     private UserService userService;
     @Autowired
     private AccountService accountService;
+    @Autowired
+    private AccountStorage accountStorage;
+
     private User sender;
     private User recipient;
     private String senderId;
@@ -54,17 +58,13 @@ public class TransferTest {
         senderAccount = TestDataFactory.createAccounts(senderId, accountService, 1).getFirst();
         senderAccountId = senderAccount.getAccountId();
         accountService.deposit(deposit, senderAccountId);
-        senderBalance = accountService
-                .getAccountById(senderAccountId)
-                .getCurrentAmount();
+        senderBalance = senderAccount.getCurrentAmount();
 
         recipient = TestDataFactory.createUser(userService);
         recipientId = recipient.getId();
         recipientAccount = TestDataFactory.createAccounts(recipientId, accountService, 1).getFirst();
         recipientAccountId = recipientAccount.getAccountId();
-        recipientBalance = accountService
-                .getAccountById(recipientAccountId)
-                .getCurrentAmount();
+        recipientBalance = recipientAccount.getCurrentAmount();
 
     }
 
@@ -88,20 +88,18 @@ public class TransferTest {
 
         accountService.transfer(senderAccountId, recipientAccountId, normalizedSum);
 
-        Account updatedSender = accountService.getAccountById(senderAccountId);
-        Account updatedRecipient = accountService.getAccountById(recipientAccountId);
-
         BigDecimal expectedSender = senderBalance.subtract(normalizedSum).subtract(fee);
         BigDecimal expectedRecipient = recipientBalance.add(normalizedSum);
-        BigDecimal finalSenderAccount = updatedSender.getCurrentAmount();
-        BigDecimal finalRecipientAccount = updatedRecipient.getCurrentAmount();
+        BigDecimal finalSenderAmount = senderAccount.getCurrentAmount();
+        BigDecimal finalRecipientAmount = recipientAccount.getCurrentAmount();
 
-        logger.info("finalSenderAccountSum = " + finalSenderAccount);
-        logger.info("finalRecipientAccountSum = " + finalRecipientAccount);
+        logger.info("finalSenderAccountSum = " + finalSenderAmount);
+        logger.info("finalRecipientAccountSum = " + finalRecipientAmount);
 
-        assertThat(finalSenderAccount).isEqualByComparingTo(expectedSender);
-        assertThat(finalRecipientAccount).isEqualByComparingTo(expectedRecipient);
+        assertThat(finalSenderAmount).isEqualByComparingTo(expectedSender);
+        assertThat(finalRecipientAmount).isEqualByComparingTo(expectedRecipient);
     }
+
     @Test
     @DisplayName("amount less balance can be transferred to the same user account")
     public void transferLessBalanceToSameUserAccountCanBeMadeTest() {
@@ -125,8 +123,8 @@ public class TransferTest {
 
         accountService.transfer(senderAccountId, account2Id, normalizedSum);
 
-        Account updatedAccount1 = accountService.getAccountById(senderAccountId);
-        Account updatedAccount2 = accountService.getAccountById(account2Id);
+        Account updatedAccount1 = accountStorage.findById(senderAccountId);
+        Account updatedAccount2 = accountStorage.findById(account2Id);
 
         BigDecimal expectedSender = senderBalance.subtract(normalizedSum).subtract(fee);
         BigDecimal expectedRecipient = recipientBalance.add(normalizedSum);
@@ -158,8 +156,8 @@ public class TransferTest {
         logger.info("recipientBalance = " + recipientBalance);
         logger.info("transferAmount + fee = " + normalizedSum.add(fee));
 
-        Account updatedSender = accountService.getAccountById(senderAccountId);
-        Account updatedRecipient = accountService.getAccountById(recipientAccountId);
+        Account updatedSender = accountStorage.findById(senderAccountId);
+        Account updatedRecipient = accountStorage.findById(recipientAccountId);
 
         BigDecimal expectedRecipient = recipientBalance.add(normalizedSum);
         BigDecimal finalSenderAccount = updatedSender.getCurrentAmount();
@@ -186,8 +184,8 @@ public class TransferTest {
         logger.info("recipientBalance = " + recipientBalance);
         logger.info("transferAmount = " + transferAmount);
 
-        Account updatedSender = accountService.getAccountById(senderAccountId);
-        Account updatedRecipient = accountService.getAccountById(recipientAccountId);
+        Account updatedSender = accountStorage.findById(senderAccountId);
+        Account updatedRecipient = accountStorage.findById(recipientAccountId);
 
         BigDecimal expectedSender = senderBalance.subtract(transferAmount).subtract(fee);
         BigDecimal expectedRecipient = recipientBalance.add(transferAmount);

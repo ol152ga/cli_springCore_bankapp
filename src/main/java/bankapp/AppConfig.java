@@ -48,8 +48,4 @@ public class AppConfig {
         return new ArrayList<>();
     }
 
-    @Bean
-    public List<Account> accountList() {
-        return new ArrayList<>();
-    }
 }

@@ -26,16 +26,20 @@ public class AccountStorage {
         return List.copyOf(accounts);
     }
 
-    public Account findById(String id) {
+    public Account findById(String accountId) {
         return accounts.stream()
-                .filter(a -> a.getAccountId().equalsIgnoreCase(id))
+                .filter(a -> a.getAccountId().equalsIgnoreCase(accountId))
                 .findFirst()
-                .orElseThrow(() -> new AccountNotFound(id));
+                .orElseThrow(() -> new AccountNotFound(accountId));
     }
 
     public List<Account> findByUserId(String userId){
         return accounts.stream()
                 .filter(a -> a.getUserId().equals(userId))
                 .collect(Collectors.toUnmodifiableList());
+    }
+
+    public void clear() {
+        accounts.clear();
     }
 }
