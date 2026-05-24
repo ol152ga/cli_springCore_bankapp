@@ -44,6 +44,7 @@ public class AccountService {
         return account;
     }
 
+
     public void deposit(BigDecimal sum, String accountId) {
         if (sum == null) {
             throw new NullSum();

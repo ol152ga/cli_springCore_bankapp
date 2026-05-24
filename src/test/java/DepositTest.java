@@ -5,6 +5,7 @@ import bankapp.exceptions.NullSum;
 import bankapp.exceptions.SumLessOrEqualsZero;
 import bankapp.models.Account;
 import bankapp.models.User;
+import bankapp.repo.AccountStorage;
 import bankapp.services.AccountService;
 import bankapp.services.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import utils.AccountScenario;
 import utils.Generator;
 import utils.TestDataFactory;
 
@@ -32,6 +34,8 @@ public class DepositTest {
     private AccountService accountService;
     @Autowired
     private UserService userService;
+    @Autowired
+    private AccountStorage accountStorage;
     @Value("${account.default-amount}")
     private BigDecimal defaultAmount;
 
@@ -44,93 +48,133 @@ public class DepositTest {
 
     @BeforeEach
     void setUp() {
-        user1 = TestDataFactory.createUser(userService);
-        user1Id = user1.getId();
-        account =TestDataFactory.createAccount(user1Id, accountService);
+        accountStorage.clear();
+        userService.clear();
     }
 
     @Test
     @DisplayName("valid amount can be deposited")
-    public void validSumCanBeDepositedTest(){
-        accountService.deposit(deposit, account.getAccountId());
+    public void shouldDepositValidSum(){
+        BigDecimal expected = TestDataFactory.norm(defaultAmount.add(deposit));
 
-        assertEquals(
-                0,
-                defaultAmount.add(deposit)
-                        .compareTo(account.getCurrentAmount())
-        );
+        AccountScenario scenario = new AccountScenario(userService, accountService, accountStorage);
+        scenario
+                .givenUserWithAccounts(1);
+
+        String accountId = scenario.getAccountId(0);
+
+        scenario
+                .whenUserDeposit(accountId, deposit, 1)
+                .thenAccountHasBalance(0, expected);
+
     }
+
 
     @Test
     @DisplayName("0.01 amount can be deposited")
     public void minSumCanBeDepositedTest(){
         BigDecimal value = new BigDecimal("0.01");
-        accountService.deposit(value, account.getAccountId());
+        BigDecimal expected = TestDataFactory.norm(defaultAmount.add(value));
 
-        assertEquals(defaultAmount.add(value), account.getCurrentAmount());
+        AccountScenario scenario = new AccountScenario(userService, accountService, accountStorage);
+        scenario
+                .givenUserWithAccounts(1);
+
+        String accountId = scenario.getAccountId(0);
+        scenario
+                .whenUserDeposit(accountId, value, 1)
+                .thenAccountHasBalance(0, expected);
     }
 
     @Test
     @DisplayName("valid amount can be deposited several times")
     public void validSumCanBeDepositedSeveralTimesTest(){
-        BigDecimal deposit = BigDecimal.valueOf(500);
-        int count = 5;
-        for (int i = 0; i<count; i++){
-            accountService.deposit(deposit, account.getAccountId());
-        }
+        int times = 4;
+        BigDecimal expected = TestDataFactory.norm(defaultAmount.add(deposit.multiply(BigDecimal.valueOf(times))));
 
-        BigDecimal expected =
-                defaultAmount.add(
-                        deposit.multiply(BigDecimal.valueOf(count))
-                );
+        AccountScenario scenario = new AccountScenario(userService, accountService, accountStorage);
+        scenario
+                .givenUserWithAccounts(1);
 
-        assertEquals(
-                0,
-                expected.compareTo(account.getCurrentAmount())
-        );
+        String accountId = scenario.getAccountId(0);
+
+        scenario
+                .whenUserDeposit(accountId, deposit, times)
+                .thenAccountHasBalance(0, expected);
     }
 
     @Test
     @DisplayName("negative amount can not be deposited")
     public void negativeSumCanNotBeDepositedTest(){
+
         BigDecimal negative = BigDecimal.valueOf(Math.random() * 1000).negate();
-        assertThrows(SumLessOrEqualsZero.class, ()->
-                accountService.deposit(negative, account.getAccountId()));
+
+        AccountScenario scenario = new AccountScenario(userService, accountService, accountStorage);
+
+        scenario
+                .givenUserWithAccounts(1);
+
+        String accountId = scenario.getAccountId(0);
+        scenario
+                .whenUserDeposit(accountId, negative, 1)
+                .thenThrows(SumLessOrEqualsZero.class);
+
     }
 
     @Test
     @DisplayName("0 amount can not be deposited")
     public void zeroSumCanNotBeDepositedTest(){
-        assertThrows(SumLessOrEqualsZero.class, ()->
-                accountService.deposit(BigDecimal.ZERO, account.getAccountId()));
+        AccountScenario scenario = new AccountScenario(userService, accountService, accountStorage);
+        scenario
+                .givenUserWithAccounts(1);
+        User user = userService.getAllUserList().get(0);
+        String accountId = String.valueOf(accountStorage.findByUserId(user.getId()).get(0));
+
+        scenario
+                .whenUserDeposit(accountId, BigDecimal.ZERO, 1)
+                .thenThrows(SumLessOrEqualsZero.class);
+
     }
 
     @Test
     @DisplayName("null amount can not be deposited")
     public void nullSumCanNotBeDepositedTest(){
-        assertThrows(NullSum.class, ()->
-                accountService.deposit(null, account.getAccountId()));
+        AccountScenario scenario = new AccountScenario(userService, accountService, accountStorage);
+
+        scenario
+                .givenUserWithAccounts(1);
+        User user = userService.getAllUserList().get(0);
+        String accountId = String.valueOf(accountStorage.findByUserId(user.getId()).get(0));
+        scenario
+                .whenUserDeposit(accountId, null, 1)
+                .thenThrows(NullSum.class);
+
     }
 
     @Test
     @DisplayName("amount can not be deposited to invalid account ID")
     public void sumCanNotBeDepositedToInvalidAccountIdTest(){
-        assertThrows(AccountNotFound.class, ()->
-                accountService.deposit(deposit, Generator.generate(5)));
+        AccountScenario scenario = new AccountScenario(userService, accountService, accountStorage);
+
+        scenario
+                .givenUserWithAccounts(1)
+                .whenUserDeposit(Generator.generate(5), deposit, 1)
+                .thenThrows(AccountNotFound.class);
+
     }
 
     @ParameterizedTest
     @ValueSource(strings = {" ", "   ", "\t"})
     @DisplayName("amount can not be deposited to empty account ID")
     public void sumCanNotBeDepositedToEmptyAccountIdTest(String accountId){
-        assertThrows(NullAccount.class, ()->
+        assertThrows(AccountNotFound.class, ()->
                 accountService.deposit(deposit, accountId));
     }
 
     @Test
     @DisplayName("amount can not be deposited to null account ID")
     public void sumCanNotBeDepositedToNullAccountIdTest(){
-        assertThrows(NullAccount.class, ()->
+        assertThrows(AccountNotFound.class, ()->
                 accountService.deposit(deposit, null));
     }
 
